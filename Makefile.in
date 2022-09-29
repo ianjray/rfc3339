@@ -1,0 +1,66 @@
+.POSIX:
+.SUFFIXES:
+.SUFFIXES: .c .o .uto
+
+VERSION    = 1.0.0
+
+CC         = @CC@
+CCOV       = gcov
+CFLAGS     = @CFLAGS@
+CFLAGS_COV = @CFLAGS_COV@
+CFLAGS_SAN = @CFLAGS_SAN@
+INCLUDEDIR = @PREFIX@/include
+LD         = @LD@
+LIBDIR     = @PREFIX@/lib
+PREFIX     = @PREFIX@
+
+.PHONY: all
+all: librfc3339.a rfc3339.coverage
+
+librfc3339.a: rfc3339.o
+	$(LD) -r $^ -o $@
+
+.c.o:
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+.c.uto:
+	$(CC) $(CFLAGS) $(CFLAGS_COV) $(CFLAGS_SAN) -c $^ -o $@
+
+rfc3339.coverage: rfc3339.uto test_rfc3339.c
+	$(CC) $(CFLAGS) $(CFLAGS_COV) $(CFLAGS_SAN) $^ -o $@
+	./$@
+	$(CCOV) rfc3339.c
+	! grep "#####" rfc3339.c.gcov
+
+librfc3339.pc:
+	( echo 'Name: librfc3339' ;\
+	echo 'Version: $(VERSION)' ;\
+	echo 'Description: RFC3339 Date/Time Formatter' ;\
+	echo 'prefix=$(PREFIX)' ;\
+	echo 'exec_prefix=$${prefix}' ;\
+	echo 'includedir=$${prefix}/include' ;\
+	echo 'libdir=$${prefix}/lib' ;\
+	echo 'Cflags: -I$${includedir}' ;\
+	echo 'Libs: -L$${libdir} -lrfc3339' ) > $@
+
+.PHONY: install
+install: rfc3339.h librfc3339.a librfc3339.pc
+	mkdir -p $(INCLUDEDIR)/librfc3339
+	mkdir -p $(LIBDIR)/pkgconfig
+	install -m644 rfc3339.h $(INCLUDEDIR)/librfc3339/rfc3339.h
+	install -m644 librfc3339.a $(LIBDIR)/librfc3339.a
+	install -m644 librfc3339.pc $(LIBDIR)/pkgconfig/librfc3339.pc
+
+.PHONY: uninstall
+uninstall:
+	rm -f $(INCLUDEDIR)/librfc3339/rfc3339.h
+	rm -f $(LIBDIR)/librfc3339.a
+	rm -f $(LIBDIR)/pkgconfig/librfc3339.pc
+
+.PHONY: clean
+clean:
+	rm -rf librfc3339.a librfc3339.pc *.o *.uto *.gc?? *.coverage
+
+.PHONY: distclean
+distclean: clean
+	rm -f Makefile config.status
