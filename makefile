@@ -1,26 +1,34 @@
+.POSIX:
+.SUFFIXES:
+.SUFFIXES: .c .unittest .profraw .profdata .coverage
+
 CC       = clang
+CPROF    = xcrun llvm-profdata
+CCOV     = xcrun llvm-cov
+
 SANITIZE = -fsanitize=address -fsanitize=undefined-trap -fsanitize-undefined-trap-on-error
 COVERAGE = -fprofile-instr-generate -fcoverage-mapping
-OPTS     = $(SANITIZE) $(COVERAGE) -Weverything -Wno-padded -Wno-poison-system-directories
-XCRUN    = xcrun
+OPTS     = $(SANITIZE) $(COVERAGE) -Werror -Weverything -Wno-padded -Wno-poison-system-directories
 
-.PHONY : all
-all : rfc3339.coverage
+.PHONY: all
+all: rfc3339.coverage
 
-%.coverage : %.profdata
-	$(XCRUN) llvm-cov show $*.unittest -instr-profile=$< $*.c > $@
+rfc3339.unittest: test_rfc3339.c
+
+.profdata.coverage:
+	$(CCOV) show $*.unittest -instr-profile=$< $*.c > $@
 	! grep " 0|" $@
 	echo PASS $@
 
-%.profdata : %.profraw
-	$(XCRUN) llvm-profdata merge -sparse $< -o $@
+.profraw.profdata:
+	$(CPROF) merge -sparse $< -o $@
 
-%.profraw : %.unittest
+.unittest.profraw:
 	LLVM_PROFILE_FILE=$@ ./$<
 
-%.unittest : test_%.c %.c
+.c.unittest:
 	$(CC) $(OPTS) $^ -o $@
 
-.PHONY : clean
-clean :
+.PHONY: clean
+clean:
 	rm -rf *.coverage *.profdata *.profraw *.unittest*
