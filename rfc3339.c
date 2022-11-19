@@ -7,17 +7,17 @@
 
 char *rfc3339_date_time(struct tm *tm, suseconds_t usec)
 {
-    static char buffer[40];
+    static char buffer[33];
     strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S.UUUUUU+ZZ:ZZ", tm);
-    sprintf(strchr(buffer, 'U'), "%06d%+03ld:%02ld", (int)usec, tm->tm_gmtoff / 3600, tm->tm_gmtoff % 3600);
+    snprintf(strchr(buffer, 'U'), sizeof(buffer) - (size_t)(strchr(buffer, 'U') - buffer), "%06d%+03ld:%02ld", (int)usec, tm->tm_gmtoff / 3600, tm->tm_gmtoff % 3600);
     return buffer;
 }
 
 char *rfc3339_utc_date_time(struct tm *tm, suseconds_t usec)
 {
-    static char buffer[40];
+    static char buffer[28];
     strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S.UUUUUUZ", tm);
-    sprintf(strchr(buffer, 'U'), "%06dZ", (int)usec);
+    snprintf(strchr(buffer, 'U'), sizeof(buffer) - (size_t)(strchr(buffer, 'U') - buffer), "%06dZ", (int)usec);
     return buffer;
 }
 
