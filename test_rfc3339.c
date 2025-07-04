@@ -32,12 +32,12 @@ static void test_rfc3339_format_local(void)
     assert(-EFAULT == r);
     r = rfc3339_format_local(local, 123, buf, strlen("YYYY-MM-DDTHH:MM:SS"));
     assert(-ENOMEM == r);
-    r = rfc3339_format_local(local, 123, buf, strlen("YYYY-MM-DDTHH:MM:SS.UUUUUU+hh:mm"));
+    r = rfc3339_format_local(local, 123, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNN+hh:mm"));
     assert(-ENOMEM == r);
 
-    r = rfc3339_format_local(local, 123, buf, strlen("YYYY-MM-DDTHH:MM:SS.UUUUUU+hh:mm") + 1);
+    r = rfc3339_format_local(local, 123, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNN+hh:mm") + 1);
     assert(0 == r);
-    assert(!strcmp("1996-12-19T16:39:56.000123-08:00",buf));
+    assert(!strcmp("1996-12-19T16:39:56.000000123-08:00",buf));
 }
 
 static void test_rfc3339_format_local_now(void)
@@ -45,9 +45,9 @@ static void test_rfc3339_format_local_now(void)
     char buf[80];
     int r;
 
-    r = rfc3339_format_local_now(buf, strlen("YYYY-MM-DDTHH:MM:SS.UUUUUU+hh:mm") + 1);
+    r = rfc3339_format_local_now(buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNN+hh:mm") + 1);
     assert(0 == r);
-    assert(!strcmp("1996-12-19T16:39:57.000001-08:00", buf));
+    assert(!strcmp("1996-12-19T16:39:57.000001000-08:00", buf));
 }
 
 static void test_rfc3339_format(void)
@@ -65,12 +65,12 @@ static void test_rfc3339_format(void)
     assert(-EFAULT == r);
     r = rfc3339_format(utc, 34, buf, strlen("YYYY-MM-DDTHH:MM:SS"));
     assert(-ENOMEM == r);
-    r = rfc3339_format(utc, 34, buf, strlen("YYYY-MM-DDTHH:MM:SS.UUUUUUZ"));
+    r = rfc3339_format(utc, 34, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNNZ"));
     assert(-ENOMEM == r);
 
-    r = rfc3339_format(utc, 34, buf, strlen("YYYY-MM-DDTHH:MM:SS.UUUUUUZ") + 1);
+    r = rfc3339_format(utc, 34, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNNZ") + 1);
     assert(0 == r);
-    assert(!strcmp("1996-12-20T00:39:56.000034Z", buf));
+    assert(!strcmp("1996-12-20T00:39:56.000000034Z", buf));
 }
 
 static void test_rfc3339_format_now(void)
@@ -80,7 +80,7 @@ static void test_rfc3339_format_now(void)
 
     r = rfc3339_format_now(buf, sizeof(buf));
     assert(0 == r);
-    assert(!strcmp("1996-12-20T00:39:57.000001Z", buf));
+    assert(!strcmp("1996-12-20T00:39:57.000001000Z", buf));
 }
 
 int main(void)
