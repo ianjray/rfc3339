@@ -15,7 +15,7 @@ LIBDIR     = @PREFIX@/lib
 PREFIX     = @PREFIX@
 
 .PHONY: all
-all: librfc3339.a rfc3339.coverage
+all: librfc3339.a test_readme rfc3339.coverage
 
 librfc3339.a: rfc3339.o
 	$(LD) -r $^ -o $@
@@ -25,6 +25,11 @@ librfc3339.a: rfc3339.o
 
 .c.uto:
 	$(CC) $(CFLAGS) $(CFLAGS_COV) $(CFLAGS_SAN) -c $^ -o $@
+
+test_readme: README.md librfc3339.a
+	awk '/```c/{ C=1; next } /```/{ C=0 } C' README.md | sed -e 's#librfc3339/##' > test_readme.c
+	$(CC) $(CFLAGS) $(CFLAGS_SAN) -I. test_readme.c librfc3339.a -o $@
+	./$@
 
 rfc3339.coverage: rfc3339.uto test_rfc3339.c
 	$(CC) $(CFLAGS) $(CFLAGS_COV) $(CFLAGS_SAN) $^ -o $@
@@ -59,7 +64,7 @@ uninstall:
 
 .PHONY: clean
 clean:
-	rm -rf librfc3339.a librfc3339.pc *.o *.uto *.gc?? *.coverage
+	rm -rf librfc3339.a librfc3339.pc *.o *.uto *.gc?? *.coverage test_readme*
 
 .PHONY: distclean
 distclean: clean
