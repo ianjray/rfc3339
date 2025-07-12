@@ -40,9 +40,9 @@ int rfc3339_format_local_now(char *buf, size_t cap);
 int rfc3339_format_now(char *buf, size_t cap);
 
 /// Parse an RFC3339 date-time string.
-/// @discussion Supports both local and UTC formats (with optional fractional seconds).
-/// The parser accepts time zone "±23:59".
-/// @note The output @c tm structure is not normalized.
+/// @discussion Supports both local and UTC formats (with optional fractional seconds) of the form "YYYY-MM-DDTHH:MM:SS(.NNNNNNNNN)?(Z|±HH:MM)".
+/// Outputs @c tm and @c nsec are cleared before storing parsed values.
+/// @note The output @c tm structure is *not* normalized, and leap second is accepted.
 /// @return Zero on success, negative errno otherwise.
 /// @return -EFAULT bad pointer.
 /// @return -EINVAL invalid input (trailing characters).
