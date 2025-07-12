@@ -12,6 +12,7 @@
 int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t cap)
 {
     size_t len;
+    int n;
 
     if (!tm || !buf) {
         return -EFAULT;
@@ -29,8 +30,8 @@ int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t c
     buf += len;
     cap -= len;
 
-    len = snprintf(buf, cap, ".%09" PRIu64 "%+03ld:%02ld", nsec, tm->tm_gmtoff / 3600, tm->tm_gmtoff % 3600);
-    if (len >= cap) {
+    n = snprintf(buf, cap, ".%09" PRIu64 "%+03ld:%02ld", nsec, tm->tm_gmtoff / 3600, tm->tm_gmtoff % 3600);
+    if (n < 0 || (size_t)n >= cap) {
         return -ENOMEM;
     }
 
@@ -40,6 +41,7 @@ int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t c
 int rfc3339_format(const struct tm *tm, uint64_t nsec, char *buf, size_t cap)
 {
     size_t len;
+    int n;
 
     if (!tm || !buf) {
         return -EFAULT;
@@ -57,8 +59,8 @@ int rfc3339_format(const struct tm *tm, uint64_t nsec, char *buf, size_t cap)
     buf += len;
     cap -= len;
 
-    len = snprintf(buf, cap, ".%09" PRIu64 "Z", nsec);
-    if (len >= cap) {
+    n = snprintf(buf, cap, ".%09" PRIu64 "Z", nsec);
+    if (n < 0 || (size_t)n >= cap) {
         return -ENOMEM;
     }
 
@@ -125,88 +127,10 @@ static unsigned mday_max(const struct tm *tm)
     }
 }
 
-static int fill(int mode, uint64_t v, struct tm *tm, uint64_t *nsec)
-{
-    switch (mode) {
-        case 'Y':
-            if (v < 1900) {
-                return -ERANGE;
-            }
-
-            tm->tm_year = v - 1900;
-            break;
-
-        case 'm':
-            if (v < 1 || v > 12) {
-                return -ERANGE;
-            }
-
-            tm->tm_mon = v - 1;
-            break;
-
-        case 'd':
-            if (v < 1 || v > mday_max(tm)) {
-                return -ERANGE;
-            }
-
-            tm->tm_mday = v;
-            break;
-
-        case 'H':
-            if (v > 23) {
-                return -ERANGE;
-            }
-
-            tm->tm_hour = v;
-            break;
-
-        case 'M':
-            if (v > 59) {
-                return -ERANGE;
-            }
-
-            tm->tm_min = v;
-            break;
-
-        case 'S':
-            // Note: Leap second rules are not enforced.
-            if (v > 60) {
-                return -ERANGE;
-            }
-
-            tm->tm_sec = v;
-            break;
-
-        case 'N':
-        case 'n':
-            *nsec = v;
-            break;
-
-        case 'O':
-            if (v > 23) {
-                return -ERANGE;
-            }
-
-            tm->tm_gmtoff = v * 3600;
-            break;
-
-        case 'o':
-            if (v > 59) {
-                return -ERANGE;
-            }
-
-            tm->tm_gmtoff += v * 60;
-            break;
-    }
-
-    return 0;
-}
-
 int rfc3339_parse(const char *str, struct tm *tm, uint64_t *nsec)
 {
-    bool negative_offset = false;
-    int mode = 0;
-    uint64_t v = 0;
+    uint64_t value = 0;
+    uint64_t tmp;
 
     if (!str || !tm || !nsec) {
         return -EFAULT;
@@ -215,75 +139,101 @@ int rfc3339_parse(const char *str, struct tm *tm, uint64_t *nsec)
     memset(tm, 0, sizeof(struct tm));
     *nsec = 0;
 
-    // Accept pseudo-regex:
-    // YYYY-mm-ddTHH:MM:SS(.N{1,9})?(Z|[+-]OO:oo)
+#define digit() \
+    if (isdigit(*str)) value = value * 10 + (uint64_t)(*str++) - '0'; else return -EILSEQ
 
-    for (const char *p = "YYYY-mm-ddTHH:MM:SS.NnnnnnnnnZ+OO:oo"; ; ++p) {
-        if (*p == '.' && *str != *p) {
-            // Skip optional fractional part.
-            while (*p == '.' || toupper(*p) == 'N') {
-                ++p;
-            }
+#define optional_digit() \
+    if (isdigit(*str)) value = value * 10 + (uint64_t)(*str++) - '0'; else value *= 10
+
+#define match(c) \
+    if (*str++ != (c)) return -EILSEQ
+
+#define peek(c) \
+    (*str == (c))
+
+#define clamp(low, high) \
+    if (value < (low) || value > (high)) return -ERANGE
+
+#define take() \
+    (tmp = value, value = 0, tmp)
+
+    digit();
+    digit();
+    digit();
+    digit();
+    match('-');
+    clamp(1900, 9999);
+    tm->tm_year = (int)(take() - 1900);
+
+    digit();
+    digit();
+    match('-');
+    clamp(1, 12);
+    tm->tm_mon = (int)(take() - 1);
+
+    digit();
+    digit();
+    match('T');
+    clamp(1, mday_max(tm));
+    tm->tm_mday = (int)take();
+
+    digit();
+    digit();
+    match(':');
+    clamp(0, 23);
+    tm->tm_hour = (int)take();
+
+    digit();
+    digit();
+    match(':');
+    clamp(0, 59);
+    tm->tm_min = (int)take();
+
+    digit();
+    digit();
+    // RFC allows 60 for leap second.
+    clamp(0, 60);
+    tm->tm_sec = (int)take();
+
+    if (peek('.')) {
+        match('.');
+        // One or more fractional digits, nanosecond resolution.
+        digit();
+        for (int i = 2; i <= 9; ++i) {
+            optional_digit();
         }
+        *nsec = take();
+    }
 
-        while (*p == 'n' && !isdigit(*str)) {
-            // Skip optional fractional digits.
-            v *= 10;
-            ++p;
-        }
+    if (peek('Z')) {
+        match('Z');
 
-        if (*p == 'Z' && (*str == '+' || *str == '-')) {
-            // Detect time zone offset.
-            p++;
-        }
-
-        if (strchr("-T:.Z+", *p)) {
-            int r;
-
-            if (!*p) {
-                // Final pass to call fill().
-
-            } else if (*p == '+' && *str == '-') {
-                negative_offset = true;
-                str++;
-
-            } else if (*str++ != *p) {
-                // Separator expected in input string.
-                return -EILSEQ;
-            }
-
-            r = fill(mode, v, tm, nsec);
-            if (r < 0) {
-                return r;
-            }
-
-            v = 0;
-
+    } else {
+        int negative = peek('-');
+        if (negative) {
+            match('-');
         } else {
-            if (!isdigit(*str)) {
-                // Digit expected in input string.
-                return -EILSEQ;
-            }
-
-            assert(isalpha(*p));
-            mode = *p;
-            v *= 10;
-            v += *str++ - '0';
+            match('+');
         }
 
-        if (!*p || *p == 'Z') {
-            // End of pattern reached.
-            break;
+        digit();
+        digit();
+        match(':');
+        clamp(0, 23);
+        tm->tm_gmtoff = (long)(take() * 3600);
+
+        digit();
+        digit();
+        clamp(0, 59);
+        tm->tm_gmtoff += take() * 60;
+
+        if (negative) {
+            tm->tm_gmtoff *= -1;
         }
     }
 
     if (*str) {
-        // Unexpected input remains.
         return -EINVAL;
-    }
-
-    if (negative_offset) {
-        tm->tm_gmtoff *= -1;
     }
 
     return 0;
