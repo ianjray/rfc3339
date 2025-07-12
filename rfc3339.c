@@ -17,6 +17,10 @@ int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t c
         return -EFAULT;
     }
 
+    if (nsec > 999999999ULL) {
+        return -ERANGE;
+    }
+
     len = strftime(buf, cap, "%Y-%m-%dT%H:%M:%S", tm);
     if (len == 0) {
         return -ENOMEM;
@@ -39,6 +43,10 @@ int rfc3339_format(const struct tm *tm, uint64_t nsec, char *buf, size_t cap)
 
     if (!tm || !buf) {
         return -EFAULT;
+    }
+
+    if (nsec > 999999999ULL) {
+        return -ERANGE;
     }
 
     len = strftime(buf, cap, "%Y-%m-%dT%H:%M:%S", tm);

@@ -11,6 +11,7 @@
 /// @return Zero on success, negative errno otherwise.
 /// @return -EFAULT bad pointer.
 /// @return -ENOMEM buffer too small.
+/// @return -ERANGE nsec greater than 999,999,999.
 int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t cap);
 
 /// Format RFC3339 date-time string (UTC)
@@ -19,6 +20,7 @@ int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t c
 /// @return Zero on success, negative errno otherwise.
 /// @return -EFAULT bad pointer.
 /// @return -ENOMEM buffer too small.
+/// @return -ERANGE nsec greater than 999,999,999.
 int rfc3339_format(const struct tm *tm, uint64_t nsec, char *buf, size_t cap);
 
 /// Get current time as RFC3339 date-time string

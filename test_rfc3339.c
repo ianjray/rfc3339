@@ -34,6 +34,8 @@ static void test_rfc3339_format_local(void)
     assert(-ENOMEM == r);
     r = rfc3339_format_local(local, 123, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNN+hh:mm"));
     assert(-ENOMEM == r);
+    r = rfc3339_format_local(local, 999999999ULL+1, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNN+hh:mm") + 1);
+    assert(-ERANGE == r);
 
     r = rfc3339_format_local(local, 123, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNN+hh:mm") + 1);
     assert(0 == r);
@@ -67,6 +69,8 @@ static void test_rfc3339_format(void)
     assert(-ENOMEM == r);
     r = rfc3339_format(utc, 34, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNNZ"));
     assert(-ENOMEM == r);
+    r = rfc3339_format(utc, 999999999ULL+1, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNNZ") + 1);
+    assert(-ERANGE == r);
 
     r = rfc3339_format(utc, 34, buf, strlen("YYYY-MM-DDTHH:MM:SS.NNNNNNNNNZ") + 1);
     assert(0 == r);
@@ -161,6 +165,11 @@ static void test_rfc3339_parse(void)
     assert(-EILSEQ == r);
     r = rfc3339_parse("1999-10-20T11:22:61Z", &tm, &nsec);
     assert(-ERANGE == r);
+    r = rfc3339_parse("1999-10-20T11:22:60.Z", &tm, &nsec);
+    assert(-EILSEQ == r);
+
+    r = rfc3339_parse("1999-10-20T11:22:60", &tm, &nsec);
+    assert(-EILSEQ == r);
 
     r = rfc3339_parse("2022-08-24T20:27:00.000048+24:00", &tm, &nsec);
     assert(-ERANGE == r);
