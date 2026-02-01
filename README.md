@@ -15,7 +15,7 @@ int main(void)
     struct tm tm;
     uint64_t nsec;
     int r;
-    int off;
+    long off;
     time_t t;
     char buf[64];
 

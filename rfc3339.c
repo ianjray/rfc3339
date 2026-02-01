@@ -12,6 +12,7 @@
 int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t cap)
 {
     size_t len;
+    int n;
 
     if (!tm || !buf) {
         return -EFAULT;
@@ -29,8 +30,8 @@ int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t c
     buf += len;
     cap -= len;
 
-    len = snprintf(buf, cap, ".%09" PRIu64 "%+03ld:%02ld", nsec, tm->tm_gmtoff / 3600, tm->tm_gmtoff % 3600);
-    if (len >= cap) {
+    n = snprintf(buf, cap, ".%09" PRIu64 "%+03ld:%02ld", nsec, tm->tm_gmtoff / 3600, tm->tm_gmtoff % 3600);
+    if (n < 0 || (size_t)n >= cap) {
         return -ENOMEM;
     }
 
@@ -40,6 +41,7 @@ int rfc3339_format_local(const struct tm *tm, uint64_t nsec, char *buf, size_t c
 int rfc3339_format(const struct tm *tm, uint64_t nsec, char *buf, size_t cap)
 {
     size_t len;
+    int n;
 
     if (!tm || !buf) {
         return -EFAULT;
@@ -57,8 +59,8 @@ int rfc3339_format(const struct tm *tm, uint64_t nsec, char *buf, size_t cap)
     buf += len;
     cap -= len;
 
-    len = snprintf(buf, cap, ".%09" PRIu64 "Z", nsec);
-    if (len >= cap) {
+    n = snprintf(buf, cap, ".%09" PRIu64 "Z", nsec);
+    if (n < 0 || (size_t)n >= cap) {
         return -ENOMEM;
     }
 
@@ -138,10 +140,10 @@ int rfc3339_parse(const char *str, struct tm *tm, uint64_t *nsec)
     *nsec = 0;
 
 #define digit() \
-    if (isdigit(*str)) value = value * 10 + *str++ - '0'; else return -EILSEQ
+    if (isdigit(*str)) value = value * 10 + (uint64_t)(*str++) - '0'; else return -EILSEQ
 
 #define optional_digit() \
-    if (isdigit(*str)) value = value * 10 + *str++ - '0'; else value *= 10
+    if (isdigit(*str)) value = value * 10 + (uint64_t)(*str++) - '0'; else value *= 10
 
 #define match(c) \
     if (*str++ != (c)) return -EILSEQ
@@ -161,37 +163,37 @@ int rfc3339_parse(const char *str, struct tm *tm, uint64_t *nsec)
     digit();
     match('-');
     clamp(1900, 9999);
-    tm->tm_year = take() - 1900;
+    tm->tm_year = (int)(take() - 1900);
 
     digit();
     digit();
     match('-');
     clamp(1, 12);
-    tm->tm_mon = take() - 1;
+    tm->tm_mon = (int)(take() - 1);
 
     digit();
     digit();
     match('T');
     clamp(1, mday_max(tm));
-    tm->tm_mday = take();
+    tm->tm_mday = (int)take();
 
     digit();
     digit();
     match(':');
     clamp(0, 23);
-    tm->tm_hour = take();
+    tm->tm_hour = (int)take();
 
     digit();
     digit();
     match(':');
     clamp(0, 59);
-    tm->tm_min = take();
+    tm->tm_min = (int)take();
 
     digit();
     digit();
     // RFC allows 60 for leap second.
     clamp(0, 60);
-    tm->tm_sec = take();
+    tm->tm_sec = (int)take();
 
     if (peek('.')) {
         match('.');
@@ -218,7 +220,7 @@ int rfc3339_parse(const char *str, struct tm *tm, uint64_t *nsec)
         digit();
         match(':');
         clamp(0, 23);
-        tm->tm_gmtoff = take() * 3600;
+        tm->tm_gmtoff = (long)(take() * 3600);
 
         digit();
         digit();
