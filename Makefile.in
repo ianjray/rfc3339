@@ -15,13 +15,13 @@ LIBDIR     = @PREFIX@/lib
 PREFIX     = @PREFIX@
 
 .PHONY: all
-all: librfc3339.a test_readme rfc3339.coverage
+all: librfc3339.a
 
 librfc3339.a: rfc3339.o
-	$(LD) -r $^ -o $@
+	$(LD) -r $< -o $@
 
 .c.o:
-	$(CC) $(CFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) -I. -c $< -o $@
 
 .c.uto:
 	$(CC) $(CFLAGS) $(CFLAGS_COV) $(CFLAGS_SAN) -c $^ -o $@
@@ -31,8 +31,8 @@ test_readme: README.md librfc3339.a
 	$(CC) $(CFLAGS) $(CFLAGS_SAN) -I. test_readme.c librfc3339.a -o $@
 	./$@
 
-rfc3339.coverage: rfc3339.uto test_rfc3339.c
-	$(CC) $(CFLAGS) $(CFLAGS_COV) $(CFLAGS_SAN) $^ -o $@
+rfc3339.coverage: rfc3339.uto tests/test_rfc3339.o
+	$(CC) $(CFLAGS) $(CFLAGS_COV) $(CFLAGS_SAN) -I. $^ -o $@
 	./$@
 	$(CCOV) rfc3339.c
 	! grep "#####" rfc3339.c.gcov
@@ -48,23 +48,29 @@ librfc3339.pc:
 	echo 'Cflags: -I$${includedir}' ;\
 	echo 'Libs: -L$${libdir} -lrfc3339' ) > $@
 
+.PHONY: test
+test: test_readme
+test: rfc3339.coverage
+
 .PHONY: install
 install: rfc3339.h librfc3339.a librfc3339.pc
-	mkdir -p $(INCLUDEDIR)/librfc3339
-	mkdir -p $(LIBDIR)/pkgconfig
-	install -m644 rfc3339.h $(INCLUDEDIR)/librfc3339/rfc3339.h
-	install -m644 librfc3339.a $(LIBDIR)/librfc3339.a
-	install -m644 librfc3339.pc $(LIBDIR)/pkgconfig/librfc3339.pc
+	mkdir -p $(DESTDIR)$(INCLUDEDIR)/librfc3339
+	mkdir -p $(DESTDIR)$(LIBDIR)/pkgconfig
+	install -m644 rfc3339.h $(DESTDIR)$(INCLUDEDIR)/librfc3339/rfc3339.h
+	install -m644 librfc3339.a $(DESTDIR)$(LIBDIR)/librfc3339.a
+	install -m644 librfc3339.pc $(DESTDIR)$(LIBDIR)/pkgconfig/librfc3339.pc
 
 .PHONY: uninstall
 uninstall:
-	rm -f $(INCLUDEDIR)/librfc3339/rfc3339.h
-	rm -f $(LIBDIR)/librfc3339.a
-	rm -f $(LIBDIR)/pkgconfig/librfc3339.pc
+	rm -f $(DESTDIR)$(INCLUDEDIR)/librfc3339/rfc3339.h
+	rm -f $(DESTDIR)$(LIBDIR)/librfc3339.a
+	rm -f $(DESTDIR)$(LIBDIR)/pkgconfig/librfc3339.pc
 
 .PHONY: clean
 clean:
-	rm -rf librfc3339.a librfc3339.pc *.o *.uto *.gc?? *.coverage test_readme*
+	rm -f *.o **/*.o *.uto **/*.uto *.gc?? **/*.gc?? *.coverage
+	rm -f librfc3339.a librfc3339.pc
+	rm -f test_readme*
 
 .PHONY: distclean
 distclean: clean

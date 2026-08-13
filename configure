@@ -197,7 +197,7 @@ __cache_status() {
 
 		# U-0027 APOSTROPHE Must be escaped in order to be preserved through the sub-shell.
 		# Use S and D to simplify the invocation.
-		sh -c 'S=$(printf "\047"); D=$(printf "\042"); echo $LABEL=$S$(echo $'"$VALUE"' |sed s/$S/$S$D$S$D$S/g)$S'
+		sh -c 'S=$(printf "\047"); D=$(printf "\042"); printf "%s=%s" "$LABEL" "$S"; printf "%s" "$'"$VALUE"'" |sed "s/$S/$S$D$S$D$S/g"; printf "%s\n" "$S"'
 	done
 	echo
 
@@ -274,11 +274,11 @@ find_header() {
 int main(void) {}
 EOF
 
-	if "${COMPILER}" "${PROBE}" -o /dev/null 2>/dev/null; then
-		echo "Has $NAME"
+	if eval "${COMPILER} \"${PROBE}\" -o /dev/null" 2>/dev/null; then
+		printf '%s\n' "Has $NAME"
 		CFLAGS="${CFLAGS} -D${DEFINE}"
 	else
-		echo "No $NAME"
+		printf '%s\n' "No $NAME"
 	fi
 
 	cd "${B}"
@@ -312,14 +312,13 @@ EOF
 
 	# Detect supported flags
 	for FLAG in "$@"; do
-		# shellcheck disable=SC2086
-		if ${COMPILER} ${FLAG} "${PROBE}" 2>/dev/null; then
-			echo "${COMPILER} supports ${FLAG}"
+		if eval "${COMPILER} ${FLAG} \"${PROBE}\"" 2>/dev/null; then
+			printf '%s\n' "${COMPILER} supports ${FLAG}"
 			__flag_append "${VAR}" "${FLAG}"
 		elif [ "${REQUIRED}" = "REQUIRED" ]; then
 			__die "${COMPILER} does not support ${FLAG}"
 		else
-			echo "${COMPILER} does not support ${FLAG}"
+			printf '%s\n' "${COMPILER} does not support ${FLAG}"
 		fi
 	done
 
@@ -342,13 +341,13 @@ feature_test_macro() {
 int main(void) { ${CODE} }
 EOF
 
-	if "${COMPILER}" -Werror "${PROBE}" -o /dev/null 2>/dev/null; then
-		echo "${COMPILER} has ${API}"
+	if eval "${COMPILER} -Werror \"${PROBE}\" -o /dev/null" 2>/dev/null; then
+		printf '%s\n' "${COMPILER} has ${API}"
 	else
 		sed -i -e s/undef/define/ "${PROBE}"
 
-		if "${COMPILER}" -Werror "${PROBE}" -o /dev/null 2>/dev/null; then
-			echo "${COMPILER} has ${HEADER} ${DEFINE} ${API}"
+		if eval "${COMPILER} -Werror \"${PROBE}\" -o /dev/null" 2>/dev/null; then
+			printf '%s\n' "${COMPILER} has ${HEADER} ${DEFINE} ${API}"
 			CFLAGS="${CFLAGS} -DHAS_$(echo "${API}" | tr '[:lower:]' '[:upper:]')_GNU_SOURCE"
 		else
 			__die "${COMPILER} missing ${API}"
